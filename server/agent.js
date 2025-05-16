@@ -8,23 +8,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const model = new ChatGoogleGenerativeAI({
+  model: "gemini-2.0-flash",
+  apiKey: process.env.GOOGLE_API_KEY,
+  maxOutputTokens: 2048,
+});
+
+const checkPointSaver = new MemorySaver();
+
 const weatherTool = tool(
   async ({ query }) => {
-
-
-    console.log("[Tool] Query from Gemini:", query);
-
-    // const match = query.match(/in\s+([a-zA-Z\s]+)|of\s+([a-zA-Z\s]+)/i);
-    // const location = match ? (match[1] || match[2]).trim() : null;
-
     const location = query;
-
-    console.log(".................[Tool] Extracted location:", location);
-
-    // if (!location) {
-    //   return "Sorry, I couldn't identify the location.";
-    // }
-
     try{
       const response = await axios.get("https://serpapi.com/search", {
         params: {
@@ -33,16 +27,14 @@ const weatherTool = tool(
           api_key: process.env.SERPAPI_KEY,
         },
       });
-
-      console.log("//////////////////[Tool] Weather data:", response.data?.organic_results?.[0]?.snippet);
-
+      
       const weatherData = response.data?.organic_results?.[0]?.snippet;
 
-      if (!weatherData) {
+      if (!weatherData || typeof weatherData !== "string") {
         return `I couldn't find weather info for ${location}.`;
       }
 
-      return `Current weather in ${location} is ${weatherData.temperature}, ${weatherData.description}.`;
+      return `Current weather in ${location} is ${weatherData}`;
   
     }catch (error){
       console.error("[Tool] SerpAPI error:", error?.response?.data || error.message);
@@ -57,14 +49,6 @@ const weatherTool = tool(
     }),
   }
 );
-
-const model = new ChatGoogleGenerativeAI({
-  model: "gemini-1.5-pro-latest",
-  apiKey: process.env.GOOGLE_API_KEY,
-  maxOutputTokens: 2048,
-});
-
-const checkPointSaver = new MemorySaver();
 
 export const agent = createReactAgent({
   llm: model,
